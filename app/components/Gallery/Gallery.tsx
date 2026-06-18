@@ -10,8 +10,8 @@ const DRIVE_IDS = [
   "1ZDn3ASBRp3hbQ4c_vDFq4nyWJFscTuWj", // 4.jpg
   "1fXOLTdEpbsGohg64JvNiSzJQ58w8Vwc1", // 5.jpg
   "1jSrbTEzvjQxT_chI5FlROlEboTZKjCX8", // Ketikakuwisuda - 3.jpg
-  "1N4Tu-LrlJbNIIMS-lUDeBw0nLinAautf", // FAN01914.jpg
-  "1-FhPs545NKJ1A0A8CLE6nTmAze1eD-AC", // FAN06436.jpg
+  "1Knbw3EpGC7Np2rB3N7fAxKTm0favMLdD", // FAN01914.jpg
+  "1PEUznxnYmTBltS2kNzAy7ywCQd6BjcYA", // FAN06436.jpg
   "1ZuQ3REFkzhfLOrQ9l4BZA7GIWUI0y01W", // IMG_3586.JPG
   "1dH9EpZ6aqGyUdTFG7lVaQN01ssM2Xkhk", // DSC02784.jpg
 ];
