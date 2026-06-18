@@ -1,29 +1,45 @@
 "use client";
 
 import React from "react";
+import { Poppins } from "next/font/google";
 
-// ── Semua foto dari folder Drive (ID langsung, sudah diverifikasi) ──
 const DRIVE_IDS = [
-  "10rdjnpiBcSr8Qo-DrQyd2QHZYwuFVE_E", // 1.jpg
-  "1ZcBPHb7Jn1GooL2zBhc7ANgeYEJxMSqC", // 2.jpg
-  "1dgBxq1k8DmgketBlM91WvejaMsffqXYP", // 3.jpg
-  "1nsRpNrV70_E60PoNkLUTGoT5-cZLjXN2", // 4.jpg
-  "1fXOLTdEpbsGohg64JvNiSzJQ58w8Vwc1", // 5.jpg
-  "1jSrbTEzvjQxT_chI5FlROlEboTZKjCX8", // Ketikakuwisuda - 3.jpg
-  "1N4Tu-LrlJbNIIMS-lUDeBw0nLinAautf", // FAN01914.jpg
-  "1-FhPs545NKJ1A0A8CLE6nTmAze1eD-AC", // FAN06436.jpg
-  "1ZuQ3REFkzhfLOrQ9l4BZA7GIWUI0y01W", // IMG_3586.JPG
+  "10rdjnpiBcSr8Qo-DrQyd2QHZYwuFVE_E",
+  "1ZcBPHb7Jn1GooL2zBhc7ANgeYEJxMSqC",
+  "1dgBxq1k8DmgketBlM91WvejaMsffqXYP",
+  "1nsRpNrV70_E60PoNkLUTGoT5-cZLjXN2",
+  "1fXOLTdEpbsGohg64JvNiSzJQ58w8Vwc1",
+  "1jSrbTEzvjQxT_chI5FlROlEboTZKjCX8",
+  "1N4Tu-LrlJbNIIMS-lUDeBw0nLinAautf",
+  "1-FhPs545NKJ1A0A8CLE6nTmAze1eD-AC",
+  "1ZuQ3REFkzhfLOrQ9l4BZA7GIWUI0y01W",
   "1dH9EpZ6aqGyUdTFG7lVaQN01ssM2Xkhk",
-  "1HF0QuoLGirF0tlkY5NFfHKEL81KG9Nz-", // DSC02784.jpg
+  "1HF0QuoLGirF0tlkY5NFfHKEL81KG9Nz-",
 ];
 
-const IMAGE_URLS = DRIVE_IDS.map(
-  (id) => `https://lh3.googleusercontent.com/d/${id}=w800`
+// ── Shuffle Fisher-Yates — dijalankan sekali saat module load ──
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const IMAGE_URLS = shuffle(
+  DRIVE_IDS.map((id) => `https://lh3.googleusercontent.com/d/${id}=w800`)
 );
 
 const MOBILE_COLUMNS = 2;
 const DESKTOP_COLUMNS = 4;
-const ITEMS = [...IMAGE_URLS, ...IMAGE_URLS, ...IMAGE_URLS];
+
+// Tiap kolom punya urutan acak sendiri agar antar kolom tidak terlihat sama
+const COLUMN_ITEMS = Array.from({ length: DESKTOP_COLUMNS }, () => {
+  const shuffled = shuffle(IMAGE_URLS);
+  // 3x duplikat untuk seamless infinite scroll
+  return [...shuffled, ...shuffled, ...shuffled];
+});
 
 const marqueeUp = (duration: number): React.CSSProperties => ({
   animation: `marqueeUp ${duration}s linear infinite`,
@@ -32,6 +48,12 @@ const marqueeUp = (duration: number): React.CSSProperties => ({
 const marqueeDown = (duration: number): React.CSSProperties => ({
   animation: `marqueeDown ${duration}s linear infinite`,
   willChange: "transform",
+});
+
+const poppinsThin = Poppins({
+  subsets: ["latin"],
+  weight: ["300"],
+  display: "swap",
 });
 
 export default function Hero() {
@@ -46,8 +68,6 @@ export default function Hero() {
           0%   { transform: translateY(-33.333%); }
           100% { transform: translateY(0); }
         }
-
-        /* Shimmer line di atas card */
         .glass-card::before {
           content: '';
           position: absolute;
@@ -77,6 +97,8 @@ export default function Hero() {
             const duration = 32 + colIndex * 4;
             const isUp = colIndex % 2 === 0;
             const hideClass = colIndex >= MOBILE_COLUMNS ? "hidden md:flex" : "flex";
+            // Tiap kolom pakai urutan acaknya sendiri
+            const items = COLUMN_ITEMS[colIndex];
 
             return (
               <div
@@ -85,7 +107,7 @@ export default function Hero() {
                 style={{ flex: "1 1 0", minWidth: 0 }}
               >
                 <div style={isUp ? marqueeUp(duration) : marqueeDown(duration)}>
-                  {ITEMS.map((src, i) => (
+                  {items.map((src, i) => (
                     <div
                       key={`${colIndex}-${i}`}
                       className="w-full rounded-xl overflow-hidden bg-transparent"
@@ -117,15 +139,7 @@ export default function Hero() {
       </div>
 
       {/* ── Konten Utama ── */}
-      <section className="relative z-10 min-h-screen overflow-hidden bg-transparent flex items-center justify-center px-4 py-20">
-
-        {/*
-          Glassmorphism card:
-          - backdrop-blur-xl  → blur kuat terhadap foto background
-          - bg-white/[0.07]   → transparan, sedikit putih
-          - border gradient   → efek shimmer tepi
-          - shadow inner + outer → kedalaman kaca
-        */}
+      <section className={`${poppinsThin.className} relative z-10 min-h-screen overflow-hidden bg-transparent flex items-center justify-center px-4 py-20`}>
         <div
           className="glass-card relative flex flex-col items-center gap-5 rounded-3xl px-6 py-8 sm:px-10 sm:py-10 text-center w-full max-w-sm sm:max-w-xl"
           style={{
@@ -141,7 +155,6 @@ export default function Hero() {
             `,
           }}
         >
-          {/* Noise texture overlay untuk efek "frosted glass" lebih realistis */}
           <div
             className="absolute inset-0 rounded-3xl pointer-events-none opacity-[0.04]"
             style={{
@@ -150,7 +163,6 @@ export default function Hero() {
             }}
           />
 
-          {/* Eyebrow pill */}
           <span
             className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] sm:text-xs font-medium tracking-widest uppercase"
             style={{
@@ -163,9 +175,8 @@ export default function Hero() {
             Abadikan Momenmu
           </span>
 
-          {/* Heading */}
           <h1
-            className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-none"
+            className="text-4xl sm:text-6xl md:text-7xl font-light tracking-tight leading-none"
             style={{
               color: "rgba(255,255,255,0.95)",
               textShadow: "0 2px 24px rgba(0,0,0,0.4)",
@@ -173,10 +184,8 @@ export default function Hero() {
           >
             Ketikakuwisuda.
           </h1>
-
         </div>
 
-        {/* Scroll hint */}
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
           <span className="text-[9px] sm:text-[10px] tracking-widest text-white uppercase">Scroll</span>
           <div className="h-6 sm:h-8 w-px bg-white/70" />
