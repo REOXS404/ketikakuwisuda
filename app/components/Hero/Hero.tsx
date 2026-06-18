@@ -160,7 +160,7 @@ export default function Hero() {
               backdropFilter: "blur(8px)",
             }}
           >
-            ✦ Abadikan Momen Terbaikmu
+            Abadikan Momenmu
           </span>
 
           {/* Heading */}
