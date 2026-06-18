@@ -24,3 +24,61 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes slide-right-down-loop {
+  0% {
+    transform: translateX(-50%) translateY(-100%);
+  }
+  100% {
+    transform: translateX(50%) translateY(100%);
+  }
+}
+
+@keyframes slide-left-down-loop {
+  0% {
+    transform: translateX(50%) translateY(-100%);
+  }
+  100% {
+    transform: translateX(-50%) translateY(100%);
+  }
+}
+
+.animate-slide-right-down {
+  animation: slide-right-down-loop 30s linear infinite;
+}
+
+.animate-slide-left-down {
+  animation: slide-left-down-loop 30s linear infinite;
+}
+
+/* Utility: hide scrollbars for horizontal scrollers */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Modal open animation */
+@keyframes modal-fade-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-modal-open { animation: modal-fade-in 180ms ease-out; }
+
+/* Backdrop saturate helper (fallback if Tailwind variant missing) */
+.backdrop-saturate-150 { backdrop-filter: saturate(150%); -webkit-backdrop-filter: saturate(150%); }
+
+@keyframes marqueeUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-33.333%); }
+}
+
+@keyframes marqueeDown {
+  0% { transform: translateY(-33.333%); }
+  100% { transform: translateY(0); }
+}
+
+.animate-marquee-up {
+  animation: marqueeUp linear infinite;
+}
+
+.animate-marquee-down {
+  animation: marqueeDown linear infinite;
+}
