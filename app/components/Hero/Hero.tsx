@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Poppins } from "next/font/google";
 
 const DRIVE_IDS = [
@@ -27,7 +27,6 @@ const DRIVE_IDS = [
   
 ];
 
-// ── Shuffle Fisher-Yates — dijalankan sekali saat module load ──
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -36,47 +35,101 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
-
-const IMAGE_URLS = shuffle(
-  DRIVE_IDS.map((id) => `https://lh3.googleusercontent.com/d/${id}=w800`)
-);
-
+ 
+const IMAGE_URLS = DRIVE_IDS.map((id) => `https://lh3.googleusercontent.com/d/${id}=w800`);
+ 
 const MOBILE_COLUMNS = 2;
 const DESKTOP_COLUMNS = 4;
-
-// Tiap kolom punya urutan acak sendiri agar antar kolom tidak terlihat sama
-const COLUMN_ITEMS = Array.from({ length: DESKTOP_COLUMNS }, () => {
-  const shuffled = shuffle(IMAGE_URLS);
-  // 3x duplikat untuk seamless infinite scroll
-  return [...shuffled, ...shuffled, ...shuffled];
-});
-
-const marqueeUp = (duration: number): React.CSSProperties => ({
-  animation: `marqueeUp ${duration}s linear infinite`,
-  willChange: "transform",
-});
-const marqueeDown = (duration: number): React.CSSProperties => ({
-  animation: `marqueeDown ${duration}s linear infinite`,
-  willChange: "transform",
-});
-
+ 
+const INITIAL_COLUMN_ITEMS = Array.from({ length: DESKTOP_COLUMNS }, () => [
+  ...IMAGE_URLS,
+  ...IMAGE_URLS,
+  ...IMAGE_URLS,
+]);
+ 
 const poppinsThin = Poppins({
   subsets: ["latin"],
   weight: ["300"],
   display: "swap",
 });
-
+ 
+// Durasi per kolom (ms) — dipakai untuk JS animation juga
+const DURATIONS = [32, 36, 40, 44];
+ 
 export default function Hero() {
+  // Ref ke tiap track kolom untuk JS-driven animation (iOS fallback)
+  const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const posRefs   = useRef<number[]>(DURATIONS.map(() => 0));
+  const rafRef    = useRef<number>(0);
+  const isIOS     = useRef(false);
+  const [columnItems, setColumnItems] = useState<string[][]>(() => INITIAL_COLUMN_ITEMS);
+ 
+  useEffect(() => {
+    setColumnItems(
+      Array.from({ length: DESKTOP_COLUMNS }, () => {
+        const s = shuffle(IMAGE_URLS);
+        return [...s, ...s, ...s];
+      })
+    );
+    // Deteksi iOS Safari
+    isIOS.current =
+      /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+ 
+    if (!isIOS.current) return; // desktop/Android → biarkan CSS animation berjalan
+ 
+    // iOS → matikan CSS animation, ganti dengan JS requestAnimationFrame
+    trackRefs.current.forEach((el) => {
+      if (el) el.style.animation = "none";
+    });
+ 
+    let lastTime = performance.now();
+ 
+    function tick(now: number) {
+      const dt = now - lastTime; // delta ms
+      lastTime = now;
+ 
+      trackRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const isUp = i % 2 === 0;
+        // kecepatan px/ms: total tinggi 1 set / durasi
+        // kita geser posisi, lalu wrap saat lewat -33.333%
+        const speed = 100 / (DURATIONS[i] * 1000); // % per ms
+        const delta = speed * dt;
+ 
+        if (isUp) {
+          posRefs.current[i] -= delta;
+          if (posRefs.current[i] <= -33.333) posRefs.current[i] += 33.333;
+        } else {
+          posRefs.current[i] += delta;
+          if (posRefs.current[i] >= 0) posRefs.current[i] -= 33.333;
+        }
+ 
+        // Gunakan matrix3d agar iOS hardware-accelerate dengan benar
+        el.style.transform = `translate3d(0, ${posRefs.current[i]}%, 0)`;
+      });
+ 
+      rafRef.current = requestAnimationFrame(tick);
+    }
+ 
+    // Init posisi awal untuk marqueeDown kolom
+    posRefs.current = DURATIONS.map((_, i) => (i % 2 === 0 ? 0 : -33.333));
+ 
+    rafRef.current = requestAnimationFrame(tick);
+ 
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+ 
   return (
     <>
       <style>{`
         @keyframes marqueeUp {
-          0%   { transform: translateY(0); }
-          100% { transform: translateY(-33.333%); }
+          0%   { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(0, -33.333%, 0); }
         }
         @keyframes marqueeDown {
-          0%   { transform: translateY(-33.333%); }
-          100% { transform: translateY(0); }
+          0%   { transform: translate3d(0, -33.333%, 0); }
+          100% { transform: translate3d(0, 0, 0); }
         }
         .glass-card::before {
           content: '';
@@ -96,42 +149,75 @@ export default function Hero() {
           pointer-events: none;
         }
       `}</style>
-
+ 
       {/* ── Background Marquee ── */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+      <div
+        className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
+        /*
+          iOS Safari pause animasi saat parent di-scroll.
+          translate3d(0,0,0) pada wrapper paksa GPU layer tersendiri
+          sehingga animasi anak tidak ter-interrupt.
+        */
+        style={{ transform: "translate3d(0,0,0)", WebkitTransform: "translate3d(0,0,0)" }}
+      >
         <div
           className="absolute inset-0 flex items-start"
           style={{ gap: "clamp(6px, 1.5vw, 14px)" }}
         >
           {Array.from({ length: DESKTOP_COLUMNS }).map((_, colIndex) => {
-            const duration = 32 + colIndex * 4;
-            const isUp = colIndex % 2 === 0;
+            const duration = DURATIONS[colIndex];
+            const isUp     = colIndex % 2 === 0;
             const hideClass = colIndex >= MOBILE_COLUMNS ? "hidden md:flex" : "flex";
-            // Tiap kolom pakai urutan acaknya sendiri
-            const items = COLUMN_ITEMS[colIndex];
-
+            const items     = columnItems[colIndex];
+ 
             return (
               <div
                 key={colIndex}
                 className={`${hideClass} flex-col overflow-hidden`}
                 style={{ flex: "1 1 0", minWidth: 0 }}
               >
-                <div style={isUp ? marqueeUp(duration) : marqueeDown(duration)}>
+                <div
+                  ref={(el) => { trackRefs.current[colIndex] = el; }}
+                  style={{
+                    // CSS animation (non-iOS)
+                    animation: isUp
+                      ? `marqueeUp ${duration}s linear infinite`
+                      : `marqueeDown ${duration}s linear infinite`,
+                    // Paksa GPU compositing — TIDAK pakai will-change (bikin iOS pause)
+                    transform: "translate3d(0,0,0)",
+                    WebkitTransform: "translate3d(0,0,0)",
+                    // iOS perlu -webkit-
+                    WebkitAnimationName: isUp ? "marqueeUp" : "marqueeDown",
+                    WebkitAnimationDuration: `${duration}s`,
+                    WebkitAnimationTimingFunction: "linear",
+                    WebkitAnimationIterationCount: "infinite",
+                    WebkitAnimationPlayState: "running",
+                  }}
+                >
                   {items.map((src, i) => (
                     <div
                       key={`${colIndex}-${i}`}
-                      className="w-full rounded-xl overflow-hidden bg-transparent"
+                      className="w-full rounded-xl overflow-hidden"
                       style={{
                         aspectRatio: "4 / 5",
                         marginBottom: "clamp(6px, 1.5vw, 14px)",
+                        // GPU layer per card agar lazy-load tidak interrupt animasi parent
+                        transform: "translate3d(0,0,0)",
+                        WebkitTransform: "translate3d(0,0,0)",
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={src}
                         alt=""
-                        loading="lazy"
+                        /*
+                          JANGAN lazy di dalam animasi — iOS pause animasi
+                          saat IntersectionObserver fire untuk lazy load.
+                          Pakai eager untuk semua gambar marquee.
+                        */
+                        loading="eager"
                         decoding="async"
+                        fetchPriority="low"
                         referrerPolicy="no-referrer"
                         className="object-cover w-full h-full"
                         onError={(e) => {
@@ -147,13 +233,15 @@ export default function Hero() {
           })}
         </div>
       </div>
-
+ 
       {/* ── Konten Utama ── */}
-      <section className={`${poppinsThin.className} relative z-10 min-h-screen overflow-hidden bg-transparent flex items-center justify-center px-4 py-20`}>
+      <section
+        className={`${poppinsThin.className} relative z-10 min-h-screen overflow-hidden bg-transparent flex items-center justify-center px-4 py-20`}
+      >
         <div
           className="glass-card relative flex flex-col items-center gap-5 rounded-3xl px-6 py-8 sm:px-10 sm:py-10 text-center w-full max-w-sm sm:max-w-xl"
           style={{
-            background: "rgba(255, 255, 255, 0.07)",
+            background: "rgba(255,255,255,0.07)",
             backdropFilter: "blur(24px) saturate(160%) brightness(1.1)",
             WebkitBackdropFilter: "blur(24px) saturate(160%) brightness(1.1)",
             borderRadius: "24px",
@@ -172,7 +260,7 @@ export default function Hero() {
               backgroundSize: "100px 100px",
             }}
           />
-
+ 
           <span
             className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] sm:text-xs font-medium tracking-widest uppercase"
             style={{
@@ -180,11 +268,12 @@ export default function Hero() {
               border: "1px solid rgba(255,255,255,0.22)",
               color: "rgba(255,255,255,0.65)",
               backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
             }}
           >
             Abadikan Momenmu
           </span>
-
+ 
           <h1
             className="text-4xl sm:text-6xl md:text-7xl font-light tracking-tight leading-none"
             style={{
@@ -195,7 +284,7 @@ export default function Hero() {
             Ketikakuwisuda.
           </h1>
         </div>
-
+ 
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
           <span className="text-[9px] sm:text-[10px] tracking-widest text-white uppercase">Scroll</span>
           <div className="h-6 sm:h-8 w-px bg-white/70" />

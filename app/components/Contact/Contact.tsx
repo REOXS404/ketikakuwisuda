@@ -5,8 +5,8 @@ import { SiWhatsapp, SiInstagram, SiTiktok, SiThreads } from "react-icons/si";
 type Location = { lat: number; lng: number; name?: string; address?: string };
 type Props = { location?: Location | null };
 
-// Pesan WA di-encode agar aman di URL
-const WA_NUMBER = "6281586950264"; // tanpa +, tanpa spasi
+
+const WA_NUMBER = "6281586950264"; 
 const WA_MESSAGE = encodeURIComponent("Hallo kak, boleh info pricelist wisuda?");
 const WA_HREF = `https://wa.me/${WA_NUMBER}?text=${WA_MESSAGE}`;
 
