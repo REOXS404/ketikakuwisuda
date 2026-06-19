@@ -33,7 +33,7 @@ const socials = [
     name: "Threads",
     Icon: SiThreads,
     handle: "ketikakuwisuda.",
-    href: "https://www.threads.net/",
+    href: "https://www.threads.com/@ketikakuwisuda?igshid=NTc4MTIwNjQ2YQ==",
   },
 ];
 
