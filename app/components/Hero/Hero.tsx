@@ -54,7 +54,7 @@ const poppinsThin = Poppins({
 });
  
 // Durasi per kolom (ms) — dipakai untuk JS animation juga
-const DURATIONS = [32, 36, 40, 44];
+const DURATIONS = [40, 40, 40, 40];
  
 export default function Hero() {
   // Ref ke tiap track kolom untuk JS-driven animation (iOS fallback)
