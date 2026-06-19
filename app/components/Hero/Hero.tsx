@@ -4,16 +4,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Poppins } from "next/font/google";
 
 const DRIVE_IDS = [
-  "10rdjnpiBcSr8Qo-DrQyd2QHZYwuFVE_E",
-  "1ZcBPHb7Jn1GooL2zBhc7ANgeYEJxMSqC",
-  "1dgBxq1k8DmgketBlM91WvejaMsffqXYP",
   "1pvyyTUKPymFmh0lkjShOZWcNirk0KuZo",
-  "1fXOLTdEpbsGohg64JvNiSzJQ58w8Vwc1",
-  "1jSrbTEzvjQxT_chI5FlROlEboTZKjCX8",
   "119uPra5MsLKo7IN4UoycTFln03MhZKro",
   "1-FhPs545NKJ1A0A8CLE6nTmAze1eD-AC",
-  "1ZuQ3REFkzhfLOrQ9l4BZA7GIWUI0y01W",
-  "1dH9EpZ6aqGyUdTFG7lVaQN01ssM2Xkhk",
   "1HF0QuoLGirF0tlkY5NFfHKEL81KG9Nz-",
   "1tOXN-JdJtn7mm2slsmKL9Y7qRQ4l2S1U",
   "1CRYDUftNF-c1CzfyenYImAipkcSEeKbw",
@@ -23,8 +16,6 @@ const DRIVE_IDS = [
   "18hUmtx58isZv8J8PAKzgNZ-6cwd0B_-i",
   "1ITDk0RfCbqHuP4VScUFFBBl1Dd4KXAod",
   "1FE8jy0YJ8ItLpM9HzIM9THwd2dP6NShR",
-
-  
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -35,35 +26,40 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
- 
-const IMAGE_URLS = DRIVE_IDS.map((id) => `https://lh3.googleusercontent.com/d/${id}=w800`);
- 
+
+const IMAGE_URLS = DRIVE_IDS.map(
+  (id) => `https://lh3.googleusercontent.com/d/${id}=w800`
+);
+
 const MOBILE_COLUMNS = 2;
 const DESKTOP_COLUMNS = 4;
- 
+
 const INITIAL_COLUMN_ITEMS = Array.from({ length: DESKTOP_COLUMNS }, () => [
   ...IMAGE_URLS,
   ...IMAGE_URLS,
   ...IMAGE_URLS,
 ]);
- 
+
 const poppinsThin = Poppins({
   subsets: ["latin"],
   weight: ["300"],
   display: "swap",
 });
- 
-// Durasi per kolom (ms) — dipakai untuk JS animation juga
-const DURATIONS = [60, 60, 60, 60];
- 
+
+// Durasi dalam DETIK — seberapa lama 1 loop penuh
+// Naikkan angka = lebih lambat
+const DURATIONS = [70, 60, 70, 60];
+
 export default function Hero() {
-  // Ref ke tiap track kolom untuk JS-driven animation (iOS fallback)
   const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const posRefs   = useRef<number[]>(DURATIONS.map(() => 0));
+  const posRefs   = useRef<number[]>([]);
   const rafRef    = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
   const isIOS     = useRef(false);
-  const [columnItems, setColumnItems] = useState<string[][]>(() => INITIAL_COLUMN_ITEMS);
- 
+  const [columnItems, setColumnItems] = useState<string[][]>(
+    () => INITIAL_COLUMN_ITEMS
+  );
+
   useEffect(() => {
     setColumnItems(
       Array.from({ length: DESKTOP_COLUMNS }, () => {
@@ -71,65 +67,71 @@ export default function Hero() {
         return [...s, ...s, ...s];
       })
     );
-    // Deteksi iOS Safari
+
     isIOS.current =
       /iP(hone|ad|od)/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
- 
-    if (!isIOS.current) return; // desktop/Android → biarkan CSS animation berjalan
- 
-    // iOS → matikan CSS animation, ganti dengan JS requestAnimationFrame
+
+    if (!isIOS.current) return;
+
+    // Matikan CSS animation di iOS
     trackRefs.current.forEach((el) => {
-      if (el) el.style.animation = "none";
+      if (el) {
+        el.style.animation = "none";
+        el.style.webkitAnimation = "none";
+      }
     });
- 
-    let lastTime = performance.now();
- 
+
+    // Posisi awal: kolom up mulai dari 0%, kolom down mulai dari -33.333%
+    posRefs.current = DURATIONS.map((_, i) => (i % 2 === 0 ? 0 : -33.333));
+    lastTimeRef.current = performance.now();
+
     function tick(now: number) {
-      const dt = now - lastTime; // delta ms
-      lastTime = now;
- 
+      // Clamp dt maks 100ms — cegah spike saat iOS resume dari background
+      const dt = Math.min(now - lastTimeRef.current, 100);
+      lastTimeRef.current = now;
+
       trackRefs.current.forEach((el, i) => {
         if (!el) return;
         const isUp = i % 2 === 0;
-        // kecepatan px/ms: total tinggi 1 set / durasi
-        // kita geser posisi, lalu wrap saat lewat -33.333%
-        const speed = 100 / (DURATIONS[i] * 1000); // % per ms
+
+        // Rumus benar:
+        // Satu siklus = gerak sejauh 33.333% dalam DURATIONS[i] detik
+        // speed = 33.333% / (durasi_detik * 1000 ms)  →  % per ms
+        const speed = 33.333 / (DURATIONS[i] * 1000);
         const delta = speed * dt;
- 
+
         if (isUp) {
           posRefs.current[i] -= delta;
+          // Wrap: setelah -33.333% kembali ke 0%
           if (posRefs.current[i] <= -33.333) posRefs.current[i] += 33.333;
         } else {
           posRefs.current[i] += delta;
+          // Wrap: setelah 0% kembali ke -33.333%
           if (posRefs.current[i] >= 0) posRefs.current[i] -= 33.333;
         }
- 
-        // Gunakan matrix3d agar iOS hardware-accelerate dengan benar
+
         el.style.transform = `translate3d(0, ${posRefs.current[i]}%, 0)`;
+        (el.style as any).webkitTransform = `translate3d(0, ${posRefs.current[i]}%, 0)`;
       });
- 
+
       rafRef.current = requestAnimationFrame(tick);
     }
- 
-    // Init posisi awal untuk marqueeDown kolom
-    posRefs.current = DURATIONS.map((_, i) => (i % 2 === 0 ? 0 : -33.333));
- 
+
     rafRef.current = requestAnimationFrame(tick);
- 
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
- 
+
   return (
     <>
       <style>{`
         @keyframes marqueeUp {
-          0%   { transform: translate3d(0, 0, 0); }
-          100% { transform: translate3d(0, -33.333%, 0); }
+          from { transform: translate3d(0, 0, 0); }
+          to   { transform: translate3d(0, -33.333%, 0); }
         }
         @keyframes marqueeDown {
-          0%   { transform: translate3d(0, -33.333%, 0); }
-          100% { transform: translate3d(0, 0, 0); }
+          from { transform: translate3d(0, -33.333%, 0); }
+          to   { transform: translate3d(0, 0, 0); }
         }
         .glass-card::before {
           content: '';
@@ -143,22 +145,21 @@ export default function Hero() {
             rgba(255,255,255,0.05) 40%,
             rgba(255,255,255,0.15) 100%
           );
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box,
+                        linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
           pointer-events: none;
         }
       `}</style>
- 
+
       {/* ── Background Marquee ── */}
       <div
         className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
-        /*
-          iOS Safari pause animasi saat parent di-scroll.
-          translate3d(0,0,0) pada wrapper paksa GPU layer tersendiri
-          sehingga animasi anak tidak ter-interrupt.
-        */
-        style={{ transform: "translate3d(0,0,0)", WebkitTransform: "translate3d(0,0,0)" }}
+        style={{
+          transform: "translate3d(0,0,0)",
+          WebkitTransform: "translate3d(0,0,0)",
+        }}
       >
         <div
           className="absolute inset-0 flex items-start"
@@ -167,9 +168,10 @@ export default function Hero() {
           {Array.from({ length: DESKTOP_COLUMNS }).map((_, colIndex) => {
             const duration = DURATIONS[colIndex];
             const isUp     = colIndex % 2 === 0;
-            const hideClass = colIndex >= MOBILE_COLUMNS ? "hidden md:flex" : "flex";
-            const items     = columnItems[colIndex];
- 
+            const hideClass =
+              colIndex >= MOBILE_COLUMNS ? "hidden md:flex" : "flex";
+            const items = columnItems[colIndex];
+
             return (
               <div
                 key={colIndex}
@@ -177,31 +179,36 @@ export default function Hero() {
                 style={{ flex: "1 1 0", minWidth: 0 }}
               >
                 <div
-                  ref={(el) => { trackRefs.current[colIndex] = el; }}
+                  ref={(el) => {
+                    trackRefs.current[colIndex] = el;
+                  }}
                   style={{
-                    // CSS animation (non-iOS)
-                    animation: isUp
-                      ? `marqueeUp ${duration}s linear infinite`
-                      : `marqueeDown ${duration}s linear infinite`,
-                    // Paksa GPU compositing — TIDAK pakai will-change (bikin iOS pause)
-                    transform: "translate3d(0,0,0)",
-                    WebkitTransform: "translate3d(0,0,0)",
-                    // iOS perlu -webkit-
+                    // CSS animation — aktif di non-iOS
+                    animationName: isUp ? "marqueeUp" : "marqueeDown",
+                    animationDuration: `${duration}s`,
+                    animationTimingFunction: "linear",
+                    animationIterationCount: "infinite",
                     WebkitAnimationName: isUp ? "marqueeUp" : "marqueeDown",
                     WebkitAnimationDuration: `${duration}s`,
                     WebkitAnimationTimingFunction: "linear",
                     WebkitAnimationIterationCount: "infinite",
                     WebkitAnimationPlayState: "running",
+                    // Posisi awal
+                    transform: isUp
+                      ? "translate3d(0,0,0)"
+                      : "translate3d(0,-33.333%,0)",
+                    WebkitTransform: isUp
+                      ? "translate3d(0,0,0)"
+                      : "translate3d(0,-33.333%,0)",
                   }}
                 >
-                  {items.map((src, i) => (
+                  {items?.map((src, i) => (
                     <div
                       key={`${colIndex}-${i}`}
                       className="w-full rounded-xl overflow-hidden"
                       style={{
                         aspectRatio: "4 / 5",
                         marginBottom: "clamp(6px, 1.5vw, 14px)",
-                        // GPU layer per card agar lazy-load tidak interrupt animasi parent
                         transform: "translate3d(0,0,0)",
                         WebkitTransform: "translate3d(0,0,0)",
                       }}
@@ -210,11 +217,6 @@ export default function Hero() {
                       <img
                         src={src}
                         alt=""
-                        /*
-                          JANGAN lazy di dalam animasi — iOS pause animasi
-                          saat IntersectionObserver fire untuk lazy load.
-                          Pakai eager untuk semua gambar marquee.
-                        */
                         loading="eager"
                         decoding="async"
                         fetchPriority="low"
@@ -233,7 +235,7 @@ export default function Hero() {
           })}
         </div>
       </div>
- 
+
       {/* ── Konten Utama ── */}
       <section
         className={`${poppinsThin.className} relative z-10 min-h-screen overflow-hidden bg-transparent flex items-center justify-center px-4 py-20`}
@@ -260,7 +262,7 @@ export default function Hero() {
               backgroundSize: "100px 100px",
             }}
           />
- 
+
           <span
             className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] sm:text-xs font-medium tracking-widest uppercase"
             style={{
@@ -273,7 +275,7 @@ export default function Hero() {
           >
             Abadikan Momenmu
           </span>
- 
+
           <h1
             className="text-4xl sm:text-6xl md:text-7xl font-light tracking-tight leading-none"
             style={{
@@ -284,9 +286,11 @@ export default function Hero() {
             Ketikakuwisuda.
           </h1>
         </div>
- 
+
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
-          <span className="text-[9px] sm:text-[10px] tracking-widest text-white uppercase">Scroll</span>
+          <span className="text-[9px] sm:text-[10px] tracking-widest text-white uppercase">
+            Scroll
+          </span>
           <div className="h-6 sm:h-8 w-px bg-white/70" />
         </div>
       </section>
